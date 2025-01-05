@@ -59,7 +59,7 @@ if st.session_state.connection_established:
         if selected_db != st.session_state.selected_database:
             st.session_state.selected_database = selected_db
             st.session_state.selected_table = None  # Reset table selection when database changes
-            st.experimental_rerun()
+            st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
 
         cursor.close()
 
@@ -93,7 +93,7 @@ if st.session_state.selected_database:
             # Update selected table in session state when changed
             if selected_table != st.session_state.selected_table:
                 st.session_state.selected_table = selected_table
-                st.experimental_rerun()
+                st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
         else:
             st.warning("No tables found in the selected database")
 
