@@ -58,8 +58,8 @@ if st.session_state.connection_established:
         # Update selected database in session state when changed
         if selected_db != st.session_state.selected_database:
             st.session_state.selected_database = selected_db
-            st.session_state.selected_table = None  # Reset table selection when database changes
-            st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
+            st.session_state.selected_table = None  
+            st.rerun()  
 
         cursor.close()
 
@@ -93,7 +93,7 @@ if st.session_state.selected_database:
             # Update selected table in session state when changed
             if selected_table != st.session_state.selected_table:
                 st.session_state.selected_table = selected_table
-                st.rerun()  # Use st.rerun() instead of st.experimental_rerun()
+                st.rerun()  
         else:
             st.warning("No tables found in the selected database")
 
@@ -124,7 +124,7 @@ if st.session_state.selected_table:
                 df = pd.DataFrame(rows)
 
                 # Show the first few rows
-                st.write(df.head())  # You can use df.head() to preview the data
+                st.write(df.head())  
 
             else:
                 st.info("No data found in the selected table")
