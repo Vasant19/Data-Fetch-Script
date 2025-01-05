@@ -56,8 +56,12 @@ if 'connection_success' in st.session_state and st.session_state.connection_succ
             databases_list = [db[0] for db in databases]
             selected_database = st.selectbox("Select a database", databases_list)
             
+            # If a database is selected, switch session state to this database
             if selected_database:
+                # Reset table session state if database changes
                 st.session_state.selected_database = selected_database
+                st.session_state.selected_table = None  # Clear selected table
+                
                 st.success(f"Selected database: {selected_database}")
                 
             cursor.close()
@@ -69,6 +73,8 @@ if 'connection_success' in st.session_state and st.session_state.connection_succ
 # Step 3: Fetch Tables if a database is selected
 if 'selected_database' in st.session_state:
     selected_database = st.session_state.selected_database
+    st.write(f"Selected Database (From Session State): {selected_database}")
+    
     if st.button("Step 3: Fetch Tables"):
         try:
             # Establish a connection to the selected database
@@ -88,6 +94,7 @@ if 'selected_database' in st.session_state:
             tables_list = [table[0] for table in tables]
             selected_table = st.selectbox("Select a table", tables_list)
             
+            # Store selected table in session state
             if selected_table:
                 st.session_state.selected_table = selected_table
                 st.success(f"Selected table: {selected_table}")
@@ -97,3 +104,7 @@ if 'selected_database' in st.session_state:
         
         except Error as e:
             st.write(f"Failed to fetch tables: {str(e)}")
+
+# Show selected table if available in session state
+if 'selected_table' in st.session_state:
+    st.write(f"Table selected: {st.session_state.selected_table}")
