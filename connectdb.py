@@ -9,6 +9,14 @@ CONNECTION_STRING = {
     "password": "12345"
 }
 
+# Initialize session state variables
+if 'connection_established' not in st.session_state:
+    st.session_state.connection_established = False
+if 'selected_database' not in st.session_state:
+    st.session_state.selected_database = None
+if 'selected_table' not in st.session_state:
+    st.session_state.selected_table = None
+
 # Streamlit UI
 st.title("Database Table Viewer")
 
@@ -17,94 +25,119 @@ if st.button("Step 1: Connect to Database"):
     try:
         # Attempt to establish connection
         st.write("Attempting to connect to the database...")
-        
-        # Create a connection using mysql-connector
         connection = mysql.connector.connect(**CONNECTION_STRING)
-        
+
         if connection.is_connected():
-            # Check if the connection is established
             st.success("Connection to the database was successful!")
-            st.session_state.connection_success = True
-            
-            # Get the server information
             db_info = connection.get_server_info()
             st.write(f"Connected to MySQL Server version {db_info}")
-            
-            connection.close()
+            st.session_state.connection_established = True
+            st.session_state.connection = connection
         else:
             st.error("Failed to connect to the database")
-            st.session_state.connection_success = False
-            
+
     except Error as e:
-        # Print detailed error message
-        st.write(f"Connection failed: {str(e)}")
-        st.session_state.connection_success = False
+        st.error(f"Connection failed: {str(e)}")
 
-# Step 2: Fetch Databases if connection is successful
-if 'connection_success' in st.session_state and st.session_state.connection_success:
-    if st.button("Step 2: Fetch Databases"):
-        try:
-            # Establish a new connection to fetch databases
-            connection = mysql.connector.connect(**CONNECTION_STRING)
-            cursor = connection.cursor()
-            
-            # Query to fetch databases
-            cursor.execute("SHOW DATABASES")
-            databases = cursor.fetchall()
-            
-            # Show available databases in dropdown
-            databases_list = [db[0] for db in databases]
-            selected_database = st.selectbox("Select a database", databases_list)
-            
-            # If a database is selected, switch session state to this database
-            if selected_database:
-                # Reset table session state if database changes
-                st.session_state.selected_database = selected_database
-                st.session_state.selected_table = None  # Clear selected table
-                
-                st.success(f"Selected database: {selected_database}")
-                
-            cursor.close()
-            connection.close()
+# Step 2: Fetch and Select Database
+if st.session_state.connection_established:
+    try:
+        cursor = st.session_state.connection.cursor()
+        cursor.execute("SHOW DATABASES")
+        databases = cursor.fetchall()
+        databases_list = [db[0] for db in databases]
         
-        except Error as e:
-            st.write(f"Failed to fetch databases: {str(e)}")
+        # Create a selection widget for databases
+        selected_db = st.selectbox(
+            "Select a database",
+            databases_list,
+            key='database_selector',
+            index=databases_list.index(st.session_state.selected_database) if st.session_state.selected_database in databases_list else 0
+        )
 
-# Step 3: Fetch Tables if a database is selected
-if 'selected_database' in st.session_state:
-    selected_database = st.session_state.selected_database
-    st.write(f"Selected Database (From Session State): {selected_database}")
-    
-    if st.button("Step 3: Fetch Tables"):
-        try:
-            # Establish a connection to the selected database
-            connection = mysql.connector.connect(
-                host=CONNECTION_STRING["host"],
-                user=CONNECTION_STRING["user"],
-                password=CONNECTION_STRING["password"],
-                database=selected_database
+        # Update selected database in session state when changed
+        if selected_db != st.session_state.selected_database:
+            st.session_state.selected_database = selected_db
+            st.session_state.selected_table = None  # Reset table selection when database changes
+            st.experimental_rerun()
+
+        cursor.close()
+
+    except Error as e:
+        st.error(f"Failed to fetch databases: {str(e)}")
+
+# Step 3: Fetch and Select Tables
+if st.session_state.selected_database:
+    try:
+        # Create a new connection for the selected database
+        db_connection = mysql.connector.connect(
+            **CONNECTION_STRING,
+            database=st.session_state.selected_database
+        )
+        cursor = db_connection.cursor()
+        
+        # Fetch tables
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        tables_list = [table[0] for table in tables]
+
+        # Create a selection widget for tables
+        if tables_list:
+            selected_table = st.selectbox(
+                "Select a table",
+                tables_list,
+                key='table_selector',
+                index=tables_list.index(st.session_state.selected_table) if st.session_state.selected_table in tables_list else 0
             )
-            cursor = connection.cursor()
-            
-            # Query to fetch tables in the selected database
-            cursor.execute("SHOW TABLES")
-            tables = cursor.fetchall()
-            
-            # Show available tables in dropdown
-            tables_list = [table[0] for table in tables]
-            selected_table = st.selectbox("Select a table", tables_list)
-            
-            # Store selected table in session state
-            if selected_table:
-                st.session_state.selected_table = selected_table
-                st.success(f"Selected table: {selected_table}")
-            
-            cursor.close()
-            connection.close()
-        
-        except Error as e:
-            st.write(f"Failed to fetch tables: {str(e)}")
 
-# Show selected table if available in session state
-if 'selected_table' in st.session_state:
-    st.write(f"Table selected: {st.session_state.selected_table}")
+            # Update selected table in session state when changed
+            if selected_table != st.session_state.selected_table:
+                st.session_state.selected_table = selected_table
+                st.experimental_rerun()
+        else:
+            st.warning("No tables found in the selected database")
+
+        cursor.close()
+        db_connection.close()
+
+    except Error as e:
+        st.error(f"Failed to fetch tables: {str(e)}")
+
+# Step 4: View Table Data
+if st.session_state.selected_table:
+    if st.button("View Table Data"):
+        try:
+            # Connect to the selected database
+            db_connection = mysql.connector.connect(
+                **CONNECTION_STRING,
+                database=st.session_state.selected_database
+            )
+            cursor = db_connection.cursor(dictionary=True)  # Use dictionary cursor for named columns
+
+            # Fetch column names
+            cursor.execute(f"SHOW COLUMNS FROM {st.session_state.selected_table}")
+            columns = [column[0] for column in cursor.fetchall()]
+
+            # Fetch data
+            cursor.execute(f"SELECT * FROM {st.session_state.selected_table}")
+            rows = cursor.fetchall()
+
+            if rows:
+                # Display data as a DataFrame for better visualization
+                import pandas as pd
+                df = pd.DataFrame(rows)
+                st.dataframe(df)
+            else:
+                st.info("No data found in the selected table")
+
+            cursor.close()
+            db_connection.close()
+
+        except Error as e:
+            st.error(f"Failed to fetch data: {str(e)}")
+
+# Display current selections
+if st.session_state.selected_database:
+    st.sidebar.write(f"Current Database: {st.session_state.selected_database}")
+if st.session_state.selected_table:
+    st.sidebar.write(f"Current Table: {st.session_state.selected_table}")
