@@ -114,10 +114,6 @@ if st.session_state.selected_table:
             )
             cursor = db_connection.cursor(dictionary=True)  # Use dictionary cursor for named columns
 
-            # Fetch column names
-            cursor.execute(f"SHOW COLUMNS FROM {st.session_state.selected_table}")
-            columns = [column[0] for column in cursor.fetchall()]
-
             # Fetch data
             cursor.execute(f"SELECT * FROM {st.session_state.selected_table}")
             rows = cursor.fetchall()
@@ -126,7 +122,10 @@ if st.session_state.selected_table:
                 # Display data as a DataFrame for better visualization
                 import pandas as pd
                 df = pd.DataFrame(rows)
-                st.dataframe(df)
+
+                # Show the first few rows
+                st.write(df.head())  # You can use df.head() to preview the data
+
             else:
                 st.info("No data found in the selected table")
 
