@@ -1,0 +1,11 @@
+streamlit
+mysql-connector-python
+lida
+pillow
+python-dotenv
+openai
+pandas
+numpy
+python-pptx
+seaborn
+matplotlib
