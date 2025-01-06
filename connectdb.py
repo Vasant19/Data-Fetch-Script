@@ -1,13 +1,42 @@
 import streamlit as st
 import mysql.connector
 from mysql.connector import Error
-import lida as lida
-# Database connection string (empty initially)
+import lida
+from lida import Manager, TextGenerationConfig, llm
+import base64
+from PIL import Image
+from io import BytesIO
+from dotenv import load_dotenv
+import os
+import openai
+import pandas as pd
+import numpy as np
+import random
+
+# Load environment variables
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
+if api_key:
+    openai.api_key = api_key
+else:
+    raise ValueError("OpenAI API key not found in environment variables!")
+
+# Database connection string
 CONNECTION_STRING = {
     "host": "127.0.0.1",
     "user": "vasant",
     "password": "12345"
 }
+
+# Helper functions
+def base64_to_image(base64_string):
+    byte_data = base64.b64decode(base64_string)
+    return Image.open(BytesIO(byte_data))
+
+def set_random_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
 
 # Initialize session state variables
 if 'connection_established' not in st.session_state:
@@ -23,7 +52,6 @@ st.title("Database Table Viewer")
 # Step 1: Connect to the database
 if st.button("Step 1: Connect to Database"):
     try:
-        # Attempt to establish connection
         st.write("Attempting to connect to the database...")
         connection = mysql.connector.connect(**CONNECTION_STRING)
 
@@ -46,20 +74,19 @@ if st.session_state.connection_established:
         cursor.execute("SHOW DATABASES")
         databases = cursor.fetchall()
         databases_list = [db[0] for db in databases]
-        
-        # Create a selection widget for databases
+
         selected_db = st.selectbox(
             "Select a database",
             databases_list,
             key='database_selector',
-            index=databases_list.index(st.session_state.selected_database) if st.session_state.selected_database in databases_list else 0
+            index=databases_list.index(st.session_state.selected_database)
+            if st.session_state.selected_database in databases_list else 0
         )
 
-        # Update selected database in session state when changed
         if selected_db != st.session_state.selected_database:
             st.session_state.selected_database = selected_db
-            st.session_state.selected_table = None  
-            st.rerun()  
+            st.session_state.selected_table = None
+            st.rerun()
 
         cursor.close()
 
@@ -69,31 +96,27 @@ if st.session_state.connection_established:
 # Step 3: Fetch and Select Tables
 if st.session_state.selected_database:
     try:
-        # Create a new connection for the selected database
         db_connection = mysql.connector.connect(
             **CONNECTION_STRING,
             database=st.session_state.selected_database
         )
         cursor = db_connection.cursor()
-        
-        # Fetch tables
         cursor.execute("SHOW TABLES")
         tables = cursor.fetchall()
         tables_list = [table[0] for table in tables]
 
-        # Create a selection widget for tables
         if tables_list:
             selected_table = st.selectbox(
                 "Select a table",
                 tables_list,
                 key='table_selector',
-                index=tables_list.index(st.session_state.selected_table) if st.session_state.selected_table in tables_list else 0
+                index=tables_list.index(st.session_state.selected_table)
+                if st.session_state.selected_table in tables_list else 0
             )
 
-            # Update selected table in session state when changed
             if selected_table != st.session_state.selected_table:
                 st.session_state.selected_table = selected_table
-                st.rerun()  
+                st.rerun()
         else:
             st.warning("No tables found in the selected database")
 
@@ -107,29 +130,19 @@ if st.session_state.selected_database:
 if st.session_state.selected_table:
     if st.button("View Table Data"):
         try:
-            # Connect to the selected database
+            query = f"SELECT * FROM {st.session_state.selected_table}"
             db_connection = mysql.connector.connect(
                 **CONNECTION_STRING,
                 database=st.session_state.selected_database
             )
-            cursor = db_connection.cursor(dictionary=True)  # Use dictionary cursor for named columns
+            df = pd.read_sql(query, db_connection)
+            st.session_state.df = df
 
-            # Fetch data
-            cursor.execute(f"SELECT * FROM {st.session_state.selected_table}")
-            rows = cursor.fetchall()
-
-            if rows:
-                # Display data as a DataFrame for better visualization
-                import pandas as pd
-                df = pd.DataFrame(rows)
-
-                # Show the first few rows
-                st.write(df.head())  
-
+            if not df.empty:
+                st.write(df.head())
             else:
                 st.info("No data found in the selected table")
 
-            cursor.close()
             db_connection.close()
 
         except Error as e:
@@ -140,3 +153,47 @@ if st.session_state.selected_database:
     st.sidebar.write(f"Current Database: {st.session_state.selected_database}")
 if st.session_state.selected_table:
     st.sidebar.write(f"Current Table: {st.session_state.selected_table}")
+
+# Final Step: Generate Visualization
+if 'selected_table' in st.session_state and 'df' in st.session_state:
+    try:
+        lida = Manager(text_gen=llm("openai"))
+        textgen_config = TextGenerationConfig(
+            n=1, temperature=0.5, model="gpt-4o-mini", use_cache=True
+        )
+
+        user_query = st.text_input(
+            "Enter your query for visualization:",
+            placeholder="E.g., Give me a simple chart relevant to the selected table. Make sure the labelled text is visible "
+        )
+
+        if st.button("Generate Visualization"):
+            set_random_seed(42)
+            if not user_query.strip():
+                st.warning("Please enter a valid query!")
+            else:
+                try:
+                    df = st.session_state.df
+                    summary = lida.summarize(data=df, summary_method="default", textgen_config=textgen_config)
+                    st.session_state.summary = summary
+
+                    library = "seaborn"
+                    charts = lida.visualize(
+                        summary=summary,
+                        goal=user_query,
+                        textgen_config=textgen_config,
+                        library=library
+                    )
+
+                    if charts:
+                        st.write(f"Number of charts generated: {len(charts)}")
+                        image_base64 = charts[0].raster
+                        img = base64_to_image(image_base64)
+                        st.image(img)
+                    else:
+                        st.error("No charts generated.")
+                except Exception as e:
+                    st.error(f"Failed to generate visualization: {str(e)}")
+
+    except Exception as e:
+        st.error(f"Error initializing LIDA Manager or configuration: {str(e)}")
