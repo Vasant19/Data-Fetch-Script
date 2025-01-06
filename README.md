@@ -15,7 +15,7 @@ A Streamlit-based web application that allows users to connect to a MySQL databa
 
 Before running the application, make sure you have the following:
 
-- Python 3.7+
+- Python 3.12+
 - MySQL Server installed and running
 - OpenAI API key
 
@@ -23,8 +23,8 @@ Before running the application, make sure you have the following:
 
 1. Clone this repository:
 ```bash
-git clone [your-repository-url]
-cd [repository-name]
+git clone https://github.com/Vasant19/Data-Fetch-Script.git
+cd Data-Fetch-Script
 ```
 
 2. Install the required dependencies:
@@ -32,25 +32,9 @@ cd [repository-name]
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the project root directory and add your OpenAI API key:
+3. Edit the `.env` file in the project root directory and add your OpenAI API key:
 ```bash
 OPENAI_API_KEY=your_api_key_here
-```
-
-## Required Python Packages
-
-Create a `requirements.txt` file with the following dependencies:
-
-```txt
-streamlit
-mysql-connector-python
-lida
-pillow
-python-dotenv
-openai
-pandas
-numpy
-python-pptx
 ```
 
 ## Database Configuration
@@ -67,9 +51,9 @@ CONNECTION_STRING = {
 
 ## Running the Application
 
-1. Start the Streamlit application:
+1. Start the Streamlit application (will open automatically mostly):
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
 2. Open your web browser and navigate to `http://localhost:8501`
@@ -82,7 +66,7 @@ streamlit run app.py
 4. Click "View Table Data" to see the contents of the selected table
 5. Enter a natural language query to generate visualizations (e.g., "Create a bar chart showing sales by category")
 6. Click "Generate Visualization" to create the chart
-7. Optionally, export the generated visualization to PowerPoint using the "Export to PowerPoint" button
+7. Optionally, export the generated visualization to PowerPoint using the "Export to PowerPoint" button, and then download it.
 
 ## Example Queries
 
@@ -92,28 +76,6 @@ Here are some example visualization queries you can try:
 - "Create a scatter plot comparing price and quantity"
 - "Generate a pie chart showing category distribution"
 - "Make a line graph showing trends over time"
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. Database Connection Errors:
-   - Verify that MySQL server is running
-   - Check your database credentials
-   - Ensure you have proper permissions
-
-2. Visualization Generation Issues:
-   - Verify your OpenAI API key is valid
-   - Check if the query is clear and relevant to your data
-   - Ensure the selected table has sufficient data
-
-3. PowerPoint Export Issues:
-   - Make sure you have write permissions in the directory
-   - Verify that python-pptx is properly installed
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
