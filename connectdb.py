@@ -1,7 +1,7 @@
 import streamlit as st
 import mysql.connector
 from mysql.connector import Error
-
+import lida as lida
 # Database connection string (empty initially)
 CONNECTION_STRING = {
     "host": "127.0.0.1",
