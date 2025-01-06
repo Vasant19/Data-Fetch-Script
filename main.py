@@ -12,6 +12,9 @@ import openai
 import pandas as pd
 import numpy as np
 import random
+from pptx import Presentation
+from pptx.util import Inches
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +41,25 @@ def set_random_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+def generate_ppt(image):
+    prs = Presentation()
+    
+    # Add slide
+    slide = prs.slides.add_slide(prs.slide_layouts[5])  # Layout 5 is blank
+    
+    # Add image to slide
+    img_stream = BytesIO()
+    image.save(img_stream, format='PNG')
+    img_stream.seek(0)
+    slide.shapes.add_picture(img_stream, Inches(0.5), Inches(0.5), width=Inches(9))
+    
+    # Save PPT to memory buffer
+    ppt_stream = BytesIO()
+    prs.save(ppt_stream)
+    ppt_stream.seek(0)
+    
+    return ppt_stream
+
 # Initialize session state variables
 if 'connection_established' not in st.session_state:
     st.session_state.connection_established = False
@@ -45,6 +67,8 @@ if 'selected_database' not in st.session_state:
     st.session_state.selected_database = None
 if 'selected_table' not in st.session_state:
     st.session_state.selected_table = None
+if 'chart_image' not in st.session_state:
+    st.session_state.chart_image = None
 
 # Streamlit UI
 st.title("Database Table Viewer")
@@ -185,11 +209,13 @@ if 'selected_table' in st.session_state and 'df' in st.session_state:
                         library=library
                     )
 
-                    if charts:
+                    if charts and len(charts) > 0:
                         st.write(f"Number of charts generated: {len(charts)}")
                         image_base64 = charts[0].raster
                         img = base64_to_image(image_base64)
+                        st.session_state.chart_image = img  # Store image in session state
                         st.image(img)
+                        
                     else:
                         st.error("No charts generated.")
                 except Exception as e:
@@ -197,3 +223,16 @@ if 'selected_table' in st.session_state and 'df' in st.session_state:
 
     except Exception as e:
         st.error(f"Error initializing LIDA Manager or configuration: {str(e)}")
+
+# Export to PowerPoint button
+if st.session_state.chart_image:
+    if st.button("Export to PowerPoint"):
+        ppt_stream = generate_ppt(st.session_state.chart_image)
+        
+        # Provide download link
+        st.download_button(
+            label="Download PowerPoint",
+            data=ppt_stream,
+            file_name="generated_chart.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        )
