@@ -1,6 +1,10 @@
 # Database Table Viewer and Visualization Tool
 
-A Streamlit-based web application that allows users to connect to a MySQL database, view table data, and generate visualizations using LIDA (Language-based Interactive Data Analytics). The tool also supports exporting visualizations to PowerPoint presentations.
+A Streamlit-based web application that allows users to connect to a MySQL database, view table data, and generate visualizations using LIDA. The tool also supports exporting visualizations to PowerPoint presentations.
+
+
+https://github.com/user-attachments/assets/18f2050a-acb1-4435-9693-f5d33c7df77f
+
 
 ## Features
 
